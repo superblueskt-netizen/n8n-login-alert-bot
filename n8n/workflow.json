@@ -1,0 +1,308 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "security-alert",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2.1,
+      "position": [
+        32,
+        -48
+      ],
+      "id": "35b90743-8f71-4752-8584-e7c81c513ff8",
+      "name": "Webhook",
+      "webhookId": "662552fc-3a67-488f-a96b-cc5273377539"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://discord.com/api/webhooks/<REDACTED>",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"content\": \"{{ $json.text }}\" }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        928,
+        -240
+      ],
+      "id": "5e60d4e0-0141-4098-aa4f-51f62b990a3e",
+      "name": "디스코드"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://hooks.slack.com/services/<REDACTED>",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"text\": \"{{ $json.text }}\" }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        928,
+        -48
+      ],
+      "id": "01f8fdb9-1346-41f6-992e-aff4320dc1b4",
+      "name": "슬랙"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://api.telegram.org/bot<REDACTED>/sendMessage",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={ \"chat_id\": \"<REDACTED>\", \"text\": \"{{ $json.text }}\" }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        928,
+        128
+      ],
+      "id": "5161d8db-3ff3-45e7-93a8-54787e5028f8",
+      "name": "텔레그램"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ── 설정: 거부 기준은 여기 하나만 바꾸면 판정이 바뀐다 ──\nconst DENY_LEVEL   = 10;   // 이 값 이상이면 거부(deny)\nconst MEDIUM_LEVEL = 7;    // 이 값 이상이면 Medium\n\nconst payload = $input.first().json;\nconst body    = payload.body ?? payload;      // Webhook은 body 안에 들어온다\nconst student = body.student ?? 'unknown';\nconst alerts  = body.alerts  ?? [];\n\n// 경보 1건 = 아이템 1개로 펼친다\nreturn alerts.map((a) => {\n  const level = Number(a.level);\n\n  let severity, decision;\n  if (level >= DENY_LEVEL) {\n    severity = 'High';   decision = 'deny';\n  } else if (level >= MEDIUM_LEVEL) {\n    severity = 'Medium'; decision = 'allow';\n  } else {\n    severity = 'Low';    decision = 'allow';\n  }\n\n  return {\n    json: {\n      student,\n      src_ip:     a.ip,\n      level,\n      rule:       String(a.rule),\n      fail_count: Number(a.fail_count ?? 0),\n      severity,\n      decision,\n      reason:     `level ${level} (rule ${a.rule}) → ${decision}`,\n    },\n  };\n});"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        256,
+        -48
+      ],
+      "id": "e020a230-ee9a-423b-a200-dd7e523b2a74",
+      "name": "Code in JavaScript"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "12e6e90f-901f-480d-b3e9-71a6f52898cc",
+              "leftValue": "={{ $json.decision }}",
+              "rightValue": "deny",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        480,
+        -48
+      ],
+      "id": "0aba5484-2e89-4c2d-9bfc-6ddcd1ccd5c9",
+      "name": "거부인가?"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "806f1de5-2d5c-4585-bda4-7f8cd2b648e8",
+              "name": "text",
+              "value": "=🚫 [거부] {{ $json.src_ip }} · {{ $json.reason }} · {{ $json.severity }} · {{ $json.student }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        704,
+        -112
+      ],
+      "id": "5994615c-ccc5-4c00-a1b8-f920d83da9fe",
+      "name": "메시지 🚫 거부"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "806f1de5-2d5c-4585-bda4-7f8cd2b648e8",
+              "name": "text",
+              "value": "=✅ [허용] {{ $json.src_ip }} · {{ $json.student }}",
+              "type": "string"
+            }
+          ]
+        },
+        "includeOtherFields": true,
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        704,
+        16
+      ],
+      "id": "6e1aa4a1-1ff2-4a87-8f77-66a5a24326d6",
+      "name": "메시지 ✅ 허용"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "  http://host.docker.internal:5000/api/security/events",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "X-API-Key",
+              "value": "<REDACTED>"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "=    {\n      \"student\": \"{{ $json.student }}\",\n      \"src_ip\": \"{{ $json.src_ip }}\",\n      \"decision\": \"{{ $json.decision }}\",\n      \"severity\": \"{{ $json.severity }}\",\n      \"reason\": \"{{ $json.reason }}\",\n      \"fail_count\": {{ $json.fail_count }}\n    }",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        944,
+        320
+      ],
+      "id": "44e5268b-3645-41fd-a7db-66eb7b71f202",
+      "name": "게시판 저장"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "슬랙": {
+      "main": [
+        []
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "거부인가?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "거부인가?": {
+      "main": [
+        [
+          {
+            "node": "메시지 🚫 거부",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "메시지 ✅ 허용",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "메시지 🚫 거부": {
+      "main": [
+        [
+          {
+            "node": "슬랙",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "디스코드",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "텔레그램",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "게시판 저장",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "메시지 ✅ 허용": {
+      "main": [
+        [
+          {
+            "node": "디스코드",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "슬랙",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "텔레그램",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "게시판 저장",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "3d90d43b-304c-460d-a23d-4c4ef40302c5",
+  "meta": {
+    "instanceId": "fc784899174878c7ccb6e0c508daef2bd016bfcc90a2977d0e9d8bd69c34dca1"
+  },
+  "nodeGroups": [],
+  "id": "d9QY9FRVx891IWCh",
+  "tags": []
+}
