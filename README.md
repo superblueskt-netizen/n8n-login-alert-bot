@@ -118,6 +118,12 @@ Webhook → Code(판정) → IF(분기) → 문구 2종 → 메신저 3곳 + 게
 
 ![DB 저장](images/23_DB저장.png)
 
+### 보안 대시보드 (웹 화면)
+
+게시판의 `/dashboard` 화면에서 n8n이 저장한 기록을 바로 확인할 수 있습니다. 전체·거부·허용 건수와 최다 거부 IP를 요약하고, 학생 필터와 거부/허용 탭으로 최근 이벤트를 훑어볼 수 있습니다. 데이터는 `GET /api/security/events` 와 `GET /api/security/events/summary` 를 호출해 채웁니다.
+
+![보안 대시보드](images/25_보안대시보드.png)
+
 ---
 
 ## 3. 실행 방법
